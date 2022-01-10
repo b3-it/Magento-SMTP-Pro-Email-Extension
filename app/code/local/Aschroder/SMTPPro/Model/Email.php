@@ -61,4 +61,6 @@ class Aschroder_SMTPPro_Model_Email extends Mage_Core_Model_Email {
 
         return $this;
     }
+
+
 }

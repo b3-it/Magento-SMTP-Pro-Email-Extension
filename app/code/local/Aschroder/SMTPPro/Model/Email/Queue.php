@@ -9,6 +9,9 @@
  */
 class Aschroder_SMTPPro_Model_Email_Queue extends Mage_Core_Model_Email_Queue {
 
+
+    protected $_attachment  = [];
+
     // As per parent class - except addition of before and after send events
     public function send()
     {
@@ -95,6 +98,15 @@ class Aschroder_SMTPPro_Model_Email_Queue extends Mage_Core_Model_Email_Queue {
                         'message' => $message
                     ));
 
+                    // add stored files to mailer
+                    $attachments = Mage::getModel('smtppro/email_queue_attachment')->getCollection();
+                    $attachments->getSelect()->where('message_id = ? ', $message->getId());
+                    foreach ($attachments->getItems() as $att) {
+                        $mailer->createAttachment($att->getBody(),$att->getMimeType(),$att->getDisposition(),$att->getEncoding(),$att->getFilename());
+                    }
+
+
+
                     if ($transport->getTransport()) { // if set by an observer, use it
                         $mailer->send($transport->getTransport());
                     } else {
@@ -141,4 +153,44 @@ class Aschroder_SMTPPro_Model_Email_Queue extends Mage_Core_Model_Email_Queue {
         return $this;
     }
 
+
+    protected function _afterSave() {
+        parent::_afterSave();
+
+        foreach($this->_attachment as $att) {
+            $att->setMessageId($this->getId());
+            $att->save();
+        }
+
+    }
+
+
+    public function addAttachment($body,
+                                  $filename,
+                                  $mimeType    = Zend_Mime::TYPE_OCTETSTREAM,
+                                  $disposition = Zend_Mime::DISPOSITION_ATTACHMENT,
+                                  $encoding    = Zend_Mime::ENCODING_BASE64
+                                  )
+    {
+
+
+
+        $att = Mage::getModel('smtppro/email_queue_attachment');
+        $att->setBody($body);
+        $att->setBodyHash(md5($body));
+        $att->setMimeType($mimeType);
+        $att->setDisposition($disposition);
+        $att->setEncoding($encoding);
+        $att->setFilename($filename);
+        $this->_attachment[]= $att;
+        return $this;
+    }
+
+    public function hasAttachments() {
+        return !empty($this->_attachment);
+    }
+
+    public function getAttachments() {
+        return $this->_attachment;
+    }
 }
